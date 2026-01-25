@@ -29,12 +29,13 @@ export const api = {
   auth: {
     me: () => request<any>('/auth/me'),
     repos: () => request<any[]>('/auth/repos'),
+    devMode: () => request<{ devMode: boolean }>('/auth/dev-mode'),
   },
 
   projects: {
     list: () => request<any[]>('/projects'),
     get: (id: string) => request<any>(`/projects/${id}`),
-    create: (data: { name: string; repoUrl: string; branch: string }) =>
+    create: (data: { name: string; repoUrl?: string; branch?: string; localPath?: string }) =>
       request<any>('/projects', { method: 'POST', body: JSON.stringify(data) }),
     redeploy: (id: string) => request<any>(`/projects/${id}/redeploy`, { method: 'POST' }),
     stop: (id: string) => request<any>(`/projects/${id}/stop`, { method: 'POST' }),

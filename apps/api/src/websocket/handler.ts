@@ -2,6 +2,8 @@ import { FastifyInstance } from 'fastify';
 import { eq, and } from 'drizzle-orm';
 import { db, schema } from '../db/index.js';
 import { dockerService } from '../services/docker.js';
+import { config } from '../config.js';
+import { devModeProjects } from '../modules/projects/routes.js';
 
 export async function websocketHandler(app: FastifyInstance) {
   app.get('/logs/:projectId', { websocket: true }, async (socket, request) => {
@@ -26,10 +28,22 @@ export async function websocketHandler(app: FastifyInstance) {
     }
 
     // Verify project ownership
-    const [project] = await db
-      .select()
-      .from(schema.projects)
-      .where(and(eq(schema.projects.id, projectId), eq(schema.projects.userId, userId)));
+    let project: any;
+
+    if (config.devMode) {
+      // Dev mode: use in-memory storage
+      project = devModeProjects.get(projectId);
+      if (project && project.userId !== userId) {
+        project = null;
+      }
+    } else {
+      // Production: use database
+      const [dbProject] = await db
+        .select()
+        .from(schema.projects)
+        .where(and(eq(schema.projects.id, projectId), eq(schema.projects.userId, userId)));
+      project = dbProject;
+    }
 
     if (!project || !project.containerId) {
       socket.close(4004, 'Project not found');

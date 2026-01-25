@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { LayoutDashboard, Database, Shield, LogOut, Plus } from 'lucide-react';
+import { LayoutDashboard, Database, Shield, LogOut, Plus, Zap } from 'lucide-react';
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -13,13 +13,20 @@ export function Layout() {
   ];
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-[var(--bg)]">
       {/* Sidebar */}
-      <aside className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col">
-        <div className="p-4 border-b border-gray-800">
-          <h1 className="text-xl font-bold text-blue-400">OpenFlow</h1>
+      <aside className="w-64 bg-[var(--bg-elevated)] border-r border-[var(--border)] flex flex-col">
+        {/* Logo */}
+        <div className="p-5 border-b border-[var(--border)]">
+          <Link to="/dashboard" className="flex items-center gap-2.5 group">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[var(--accent)] to-[var(--accent-2)] flex items-center justify-center shadow-lg group-hover:shadow-[var(--accent-glow)] transition-shadow">
+              <Zap size={18} className="text-[var(--bg-deep)]" strokeWidth={2.5} />
+            </div>
+            <span className="text-lg font-bold tracking-tight">OpenFlow</span>
+          </Link>
         </div>
 
+        {/* Navigation */}
         <nav className="flex-1 p-3 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -28,43 +35,68 @@ export function Layout() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  active ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  active
+                    ? 'bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface)]'
                 }`}
               >
-                <Icon size={18} />
+                <Icon
+                  size={18}
+                  className={active ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] group-hover:text-[var(--text)]'}
+                />
                 {item.label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-3 border-t border-gray-800">
+        {/* New Project Button */}
+        <div className="p-3 border-t border-[var(--border)]">
           <Link
             to="/projects/new"
-            className="flex items-center gap-2 w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors"
+            className="btn btn-primary w-full justify-center"
           >
             <Plus size={18} />
             New Project
           </Link>
         </div>
 
-        <div className="p-3 border-t border-gray-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {user?.avatarUrl && (
-              <img src={user.avatarUrl} alt="" className="w-7 h-7 rounded-full" />
-            )}
-            <span className="text-sm text-gray-300">{user?.username}</span>
+        {/* User section */}
+        <div className="p-3 border-t border-[var(--border)]">
+          <div className="flex items-center justify-between p-2 rounded-lg bg-[var(--surface)]">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {user?.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt=""
+                  className="w-8 h-8 rounded-full ring-2 ring-[var(--border)]"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--accent-2)] flex items-center justify-center text-sm font-bold text-[var(--bg-deep)]">
+                  {user?.username?.[0]?.toUpperCase() || 'U'}
+                </div>
+              )}
+              <span className="text-sm font-medium text-[var(--text-secondary)] truncate">
+                {user?.username}
+              </span>
+            </div>
+            <button
+              onClick={logout}
+              className="btn-icon text-[var(--text-muted)] hover:text-[var(--error)] hover:bg-[var(--error)]/10"
+              title="Sign out"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
-          <button onClick={logout} className="text-gray-500 hover:text-red-400 transition-colors">
-            <LogOut size={16} />
-          </button>
         </div>
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto p-6">
-        <Outlet />
+      <main className="flex-1 overflow-auto">
+        <div className="p-8 max-w-6xl mx-auto">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

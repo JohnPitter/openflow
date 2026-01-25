@@ -7,11 +7,14 @@
     "apps/web"
   ],
   "scripts": {
-    "dev": "npm run dev --workspaces",
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev:api\" \"npm run dev:web\"",
     "dev:api": "npm run dev -w apps/api",
     "dev:web": "npm run dev -w apps/web",
     "build": "npm run build --workspaces",
     "build:api": "npm run build -w apps/api",
     "build:web": "npm run build -w apps/web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
   }
 }

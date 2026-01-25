@@ -76,8 +76,8 @@ export const builderService = {
         technology: 'nodejs',
         framework: 'vite',
         buildCommand: 'npm run build',
-        startCommand: '',
-        port: 80,
+        startCommand: 'npx serve -s dist -l 3000',
+        port: 3000,
       };
     }
 
@@ -86,8 +86,8 @@ export const builderService = {
         technology: 'nodejs',
         framework: 'cra',
         buildCommand: 'npm run build',
-        startCommand: '',
-        port: 80,
+        startCommand: 'npx serve -s build -l 3000',
+        port: 3000,
       };
     }
 
@@ -160,9 +160,13 @@ export const builderService = {
 
     let template = fs.readFileSync(templatePath, 'utf-8');
 
+    // Format start command for Dockerfile CMD
+    const startCmd = detection.startCommand || 'echo "no start"';
+    const formattedStartCmd = `["sh", "-c", "${startCmd.replace(/"/g, '\\"')}"]`;
+
     // Replace placeholders
     template = template.replace('{{BUILD_COMMAND}}', detection.buildCommand || 'echo "no build"');
-    template = template.replace('{{START_COMMAND}}', detection.startCommand || 'echo "no start"');
+    template = template.replace('{{START_COMMAND}}', formattedStartCmd);
     template = template.replace('{{PORT}}', String(detection.port));
     template = template.replace('{{FRAMEWORK}}', detection.framework || 'default');
 

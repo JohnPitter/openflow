@@ -4,6 +4,10 @@ import { eq, and } from 'drizzle-orm';
 import crypto from 'crypto';
 import { db, schema } from '../../db/index.js';
 import { dockerService } from '../../services/docker.js';
+import { config } from '../../config.js';
+
+// In-memory storage for dev mode databases
+export const devModeDatabases: Map<string, any> = new Map();
 
 const DB_IMAGES: Record<string, { image: string; port: number; envKeys: { user: string; pass: string; db: string } }> = {
   postgresql: {
@@ -32,10 +36,38 @@ function generatePassword(): string {
   return crypto.randomBytes(24).toString('base64url');
 }
 
+function buildConnectionString(
+  type: string,
+  host: string,
+  port: number,
+  username: string,
+  password: string,
+  dbName: string
+): string {
+  switch (type) {
+    case 'postgresql':
+      return `postgresql://${username}:${password}@${host}:${port}/${dbName}`;
+    case 'mysql':
+      return `mysql://${username}:${password}@${host}:${port}/${dbName}`;
+    case 'mongodb':
+      return `mongodb://${username}:${password}@${host}:${port}/${dbName}`;
+    case 'redis':
+      return `redis://:${password}@${host}:${port}`;
+    default:
+      return '';
+  }
+}
+
 export async function databaseRoutes(app: FastifyInstance) {
   // List user databases
   app.get('/', { preHandler: [(app as any).authenticate] }, async (request) => {
     const { id } = request.user as { id: string };
+
+    // Dev mode: return from in-memory storage
+    if (config.devMode) {
+      return Array.from(devModeDatabases.values()).filter((db) => db.userId === id);
+    }
+
     return db.select().from(schema.databases).where(eq(schema.databases.userId, id));
   });
 
@@ -83,10 +115,16 @@ export async function databaseRoutes(app: FastifyInstance) {
       networkName,
       cpus: 0.25,
       memory: 256 * 1024 * 1024,
-      volumes: { [volumeName]: type === 'postgresql' ? '/var/lib/postgresql/data' :
-                                type === 'mysql' ? '/var/lib/mysql' :
-                                type === 'mongodb' ? '/data/db' :
-                                '/data' },
+      volumes: {
+        [volumeName]:
+          type === 'postgresql'
+            ? '/var/lib/postgresql/data'
+            : type === 'mysql'
+              ? '/var/lib/mysql'
+              : type === 'mongodb'
+                ? '/data/db'
+                : '/data',
+      },
     });
 
     const dbRecord = {
@@ -101,11 +139,17 @@ export async function databaseRoutes(app: FastifyInstance) {
       username,
       password,
       status: 'running' as const,
+      createdAt: new Date(),
     };
 
-    await db.insert(schema.databases).values(dbRecord);
+    // Dev mode: save to in-memory storage
+    if (config.devMode) {
+      devModeDatabases.set(dbId, dbRecord);
+    } else {
+      await db.insert(schema.databases).values(dbRecord);
+    }
 
-    // Return connection info (hide password partially)
+    // Return connection info
     return reply.code(201).send({
       ...dbRecord,
       connectionString: buildConnectionString(type, containerName, dbConfig.port, username, password, dbName),
@@ -117,16 +161,37 @@ export async function databaseRoutes(app: FastifyInstance) {
     const { id: userId } = request.user as { id: string };
     const { id } = request.params as { id: string };
 
-    const [database] = await db
+    let database: any = null;
+
+    // Dev mode: get from in-memory storage
+    if (config.devMode) {
+      database = devModeDatabases.get(id);
+      if (!database || database.userId !== userId) {
+        return reply.code(404).send({ error: 'Database not found' });
+      }
+
+      if (database.containerId) {
+        try {
+          await dockerService.removeContainer(database.containerId);
+        } catch (e) {
+          // Ignore
+        }
+      }
+
+      devModeDatabases.delete(id);
+      return { deleted: true };
+    }
+
+    const [dbRecord] = await db
       .select()
       .from(schema.databases)
       .where(and(eq(schema.databases.id, id), eq(schema.databases.userId, userId)));
 
-    if (!database) return reply.code(404).send({ error: 'Database not found' });
+    if (!dbRecord) return reply.code(404).send({ error: 'Database not found' });
 
-    if (database.containerId) {
+    if (dbRecord.containerId) {
       try {
-        await dockerService.removeContainer(database.containerId);
+        await dockerService.removeContainer(dbRecord.containerId);
       } catch (e) {
         // Ignore
       }
@@ -141,12 +206,23 @@ export async function databaseRoutes(app: FastifyInstance) {
     const { id: userId } = request.user as { id: string };
     const { id } = request.params as { id: string };
 
-    const [database] = await db
-      .select()
-      .from(schema.databases)
-      .where(and(eq(schema.databases.id, id), eq(schema.databases.userId, userId)));
+    let database: any = null;
 
-    if (!database) return reply.code(404).send({ error: 'Database not found' });
+    // Dev mode: get from in-memory storage
+    if (config.devMode) {
+      database = devModeDatabases.get(id);
+      if (!database || database.userId !== userId) {
+        return reply.code(404).send({ error: 'Database not found' });
+      }
+    } else {
+      const [dbRecord] = await db
+        .select()
+        .from(schema.databases)
+        .where(and(eq(schema.databases.id, id), eq(schema.databases.userId, userId)));
+
+      if (!dbRecord) return reply.code(404).send({ error: 'Database not found' });
+      database = dbRecord;
+    }
 
     return {
       connectionString: buildConnectionString(
@@ -164,26 +240,4 @@ export async function databaseRoutes(app: FastifyInstance) {
       database: database.name,
     };
   });
-}
-
-function buildConnectionString(
-  type: string,
-  host: string,
-  port: number,
-  username: string,
-  password: string,
-  dbName: string
-): string {
-  switch (type) {
-    case 'postgresql':
-      return `postgresql://${username}:${password}@${host}:${port}/${dbName}`;
-    case 'mysql':
-      return `mysql://${username}:${password}@${host}:${port}/${dbName}`;
-    case 'mongodb':
-      return `mongodb://${username}:${password}@${host}:${port}/${dbName}`;
-    case 'redis':
-      return `redis://:${password}@${host}:${port}`;
-    default:
-      return '';
-  }
 }

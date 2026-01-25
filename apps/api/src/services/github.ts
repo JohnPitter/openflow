@@ -2,8 +2,10 @@ import { Octokit } from 'octokit';
 import { execFileSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
-const CLONE_BASE_PATH = '/tmp/openflow-builds';
+// Use cross-platform temp directory
+const CLONE_BASE_PATH = path.join(os.tmpdir(), 'openflow-builds');
 
 export interface RepoInfo {
   name: string;
@@ -43,6 +45,18 @@ export const githubService = {
     execFileSync('git', ['clone', '--depth', '1', '--branch', branch, authenticatedUrl, clonePath], {
       stdio: 'pipe',
       timeout: 60000,
+    });
+
+    return clonePath;
+  },
+
+  async clonePublicRepo(repoUrl: string, branch: string): Promise<string> {
+    const clonePath = path.join(CLONE_BASE_PATH, `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    fs.mkdirSync(clonePath, { recursive: true });
+
+    execFileSync('git', ['clone', '--depth', '1', '--branch', branch, repoUrl, clonePath], {
+      stdio: 'pipe',
+      timeout: 120000,
     });
 
     return clonePath;

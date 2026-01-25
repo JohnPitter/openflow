@@ -1,9 +1,16 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Github, ArrowRight, Terminal, Box, Zap, Lock } from 'lucide-react';
+import { api } from '../services/api';
+import { Github, ArrowRight, Terminal, Box, Zap, Lock, Code } from 'lucide-react';
 
 export function Home() {
   const { user } = useAuth();
+  const [devMode, setDevMode] = useState(false);
+
+  useEffect(() => {
+    api.auth.devMode().then((res) => setDevMode(res.devMode)).catch(() => {});
+  }, []);
 
   return (
     <div className="home">
@@ -472,10 +479,18 @@ export function Home() {
             Dashboard <ArrowRight size={16} />
           </Link>
         ) : (
-          <a href="/api/auth/github" className="nav-btn">
-            <Github size={16} />
-            Sign in
-          </a>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {devMode && (
+              <a href="/api/auth/dev" className="nav-btn primary">
+                <Code size={16} />
+                Dev Login
+              </a>
+            )}
+            <a href="/api/auth/github" className="nav-btn">
+              <Github size={16} />
+              Sign in
+            </a>
+          </div>
         )}
       </nav>
 
@@ -495,13 +510,18 @@ export function Home() {
             <Link to="/dashboard" className="btn btn-primary">
               Go to Dashboard <ArrowRight size={18} />
             </Link>
+          ) : devMode ? (
+            <a href="/api/auth/dev" className="btn btn-primary">
+              <Code size={18} />
+              Enter Dev Mode
+            </a>
           ) : (
             <a href="/api/auth/github" className="btn btn-primary">
               <Github size={18} />
               Start with GitHub
             </a>
           )}
-          <a href="https://github.com" target="_blank" rel="noopener" className="btn btn-secondary">
+          <a href="https://github.com/JohnPitter/openflow" target="_blank" rel="noopener" className="btn btn-secondary">
             View on GitHub
           </a>
         </div>
@@ -580,6 +600,11 @@ export function Home() {
             <Link to="/dashboard" className="btn btn-primary">
               Go to Dashboard <ArrowRight size={18} />
             </Link>
+          ) : devMode ? (
+            <a href="/api/auth/dev" className="btn btn-primary">
+              <Code size={18} />
+              Enter Dev Mode
+            </a>
           ) : (
             <a href="/api/auth/github" className="btn btn-primary">
               <Github size={18} />

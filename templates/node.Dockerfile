@@ -8,6 +8,7 @@ RUN {{BUILD_COMMAND}}
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+RUN npm install -g serve
 COPY --from=builder /app .
 EXPOSE {{PORT}}
-CMD ["sh", "-c", "{{START_COMMAND}}"]
+CMD {{START_COMMAND}}

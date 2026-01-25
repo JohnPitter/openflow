@@ -6,6 +6,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 export const config = {
+  devMode: process.env.DEV_MODE === 'true',
   port: Number(process.env.API_PORT) || 3001,
   host: '0.0.0.0',
 
@@ -23,7 +24,7 @@ export const config = {
   },
 
   docker: {
-    socket: process.env.DOCKER_SOCKET || '/var/run/docker.sock',
+    socket: process.env.DOCKER_SOCKET || (process.platform === 'win32' ? '//./pipe/docker_engine' : '/var/run/docker.sock'),
   },
 
   domain: {

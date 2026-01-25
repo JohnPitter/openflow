@@ -4,4 +4,4 @@ COPY requirements.txt* pyproject.toml* ./
 RUN pip install --no-cache-dir -r requirements.txt 2>/dev/null || pip install --no-cache-dir . 2>/dev/null || true
 COPY . .
 EXPOSE {{PORT}}
-CMD ["sh", "-c", "{{START_COMMAND}}"]
+CMD {{START_COMMAND}}

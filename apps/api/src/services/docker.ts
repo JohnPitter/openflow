@@ -1,7 +1,43 @@
 import Docker from 'dockerode';
+import net from 'net';
 import { config } from '../config.js';
 
-const docker = new Docker({ socketPath: config.docker.socket });
+// Track used ports in dev mode
+const usedPorts = new Set<number>();
+
+async function findAvailablePort(startPort: number = 4000): Promise<number> {
+  let port = startPort;
+  while (port < 65535) {
+    if (!usedPorts.has(port)) {
+      const available = await new Promise<boolean>((resolve) => {
+        const server = net.createServer();
+        server.once('error', () => resolve(false));
+        server.once('listening', () => {
+          server.close();
+          resolve(true);
+        });
+        server.listen(port, '127.0.0.1');
+      });
+      if (available) {
+        usedPorts.add(port);
+        return port;
+      }
+    }
+    port++;
+  }
+  throw new Error('No available ports');
+}
+
+function releasePort(port: number) {
+  usedPorts.delete(port);
+}
+
+// On Windows, use named pipe; on Linux/Mac, use socket
+const dockerOptions = process.platform === 'win32'
+  ? { socketPath: '//./pipe/docker_engine' }
+  : { socketPath: config.docker.socket };
+
+const docker = new Docker(dockerOptions);
 
 export interface ContainerConfig {
   name: string;
@@ -13,6 +49,8 @@ export interface ContainerConfig {
   networkName?: string;
   volumes?: Record<string, string>;
   ports?: Record<string, string>;
+  exposedPort?: number;  // Port to expose to host (dev mode)
+  hostPort?: number;     // Host port to bind to
 }
 
 export interface ContainerStats {
@@ -22,6 +60,8 @@ export interface ContainerStats {
   networkRx: number;
   networkTx: number;
 }
+
+export { findAvailablePort, releasePort };
 
 export const dockerService = {
   async buildImage(contextPath: string, tag: string, dockerfile?: string): Promise<string> {
@@ -39,6 +79,16 @@ export const dockerService = {
   },
 
   async createContainer(cfg: ContainerConfig): Promise<string> {
+    // Build port bindings for dev mode
+    const portBindings: Record<string, { HostPort: string }[]> = {};
+    const exposedPorts: Record<string, {}> = {};
+
+    if (cfg.exposedPort && cfg.hostPort) {
+      const containerPort = `${cfg.exposedPort}/tcp`;
+      exposedPorts[containerPort] = {};
+      portBindings[containerPort] = [{ HostPort: String(cfg.hostPort) }];
+    }
+
     const container = await docker.createContainer({
       name: cfg.name,
       Image: cfg.image,
@@ -47,6 +97,7 @@ export const dockerService = {
         'openflow.managed': 'true',
         ...cfg.labels,
       },
+      ExposedPorts: Object.keys(exposedPorts).length > 0 ? exposedPorts : undefined,
       HostConfig: {
         NanoCpus: (cfg.cpus || 0.5) * 1e9,
         Memory: cfg.memory || 512 * 1024 * 1024,
@@ -55,10 +106,8 @@ export const dockerService = {
         Binds: cfg.volumes
           ? Object.entries(cfg.volumes).map(([host, container]) => `${host}:${container}`)
           : undefined,
+        PortBindings: Object.keys(portBindings).length > 0 ? portBindings : undefined,
       },
-      ExposedPorts: cfg.ports
-        ? Object.fromEntries(Object.keys(cfg.ports).map((p) => [p, {}]))
-        : undefined,
       NetworkingConfig: cfg.networkName
         ? { EndpointsConfig: { [cfg.networkName]: {} } }
         : undefined,

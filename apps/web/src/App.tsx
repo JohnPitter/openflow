@@ -8,14 +8,21 @@ import { NewProject } from './pages/NewProject';
 import { Databases } from './pages/Databases';
 import { Admin } from './pages/Admin';
 import { Layout } from './components/Layout';
+import { Zap } from 'lucide-react';
 
 export function App() {
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+      <div className="flex flex-col items-center justify-center h-screen bg-[var(--bg)]">
+        <div className="relative">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-2)] flex items-center justify-center animate-pulse">
+            <Zap size={28} className="text-[var(--bg-deep)]" strokeWidth={2.5} />
+          </div>
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-2)] blur-xl opacity-30 animate-pulse" />
+        </div>
+        <p className="mt-4 text-sm text-[var(--text-muted)]">Loading...</p>
       </div>
     );
   }

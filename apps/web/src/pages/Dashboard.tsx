@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
-import { Circle, ExternalLink } from 'lucide-react';
+import { ExternalLink, Rocket, ArrowUpRight } from 'lucide-react';
 
-const STATUS_COLORS: Record<string, string> = {
-  running: 'text-green-400',
-  stopped: 'text-gray-500',
-  building: 'text-yellow-400',
-  failed: 'text-red-400',
+const STATUS_CONFIG: Record<string, { class: string; label: string }> = {
+  running: { class: 'status-running', label: 'Running' },
+  stopped: { class: 'status-stopped', label: 'Stopped' },
+  building: { class: 'status-building', label: 'Building' },
+  failed: { class: 'status-failed', label: 'Failed' },
 };
 
 export function Dashboard() {
@@ -22,48 +22,91 @@ export function Dashboard() {
   }, []);
 
   if (loading) {
-    return <div className="animate-pulse text-gray-500">Loading projects...</div>;
+    return (
+      <div className="space-y-4">
+        <div className="h-8 w-32 bg-[var(--surface)] rounded-lg animate-pulse" />
+        <div className="grid gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-24 bg-[var(--surface)] rounded-xl animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (projects.length === 0) {
     return (
-      <div className="text-center py-20">
-        <h2 className="text-xl text-gray-400 mb-4">No projects yet</h2>
-        <Link
-          to="/projects/new"
-          className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors"
-        >
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[var(--accent)]/20 to-[var(--accent-2)]/20 flex items-center justify-center mb-6">
+          <Rocket size={36} className="text-[var(--accent)]" />
+        </div>
+        <h2 className="text-2xl font-bold mb-2">No projects yet</h2>
+        <p className="text-[var(--text-muted)] mb-8 max-w-md">
+          Deploy your first project from a Git repository and watch it go live in seconds.
+        </p>
+        <Link to="/projects/new" className="btn btn-primary">
           Deploy your first project
+          <ArrowUpRight size={18} />
         </Link>
       </div>
     );
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">Projects</h1>
+    <div className="animate-fade-in">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
+          <p className="text-[var(--text-muted)] mt-1">
+            {projects.length} project{projects.length !== 1 ? 's' : ''} deployed
+          </p>
+        </div>
+        <Link to="/projects/new" className="btn btn-primary">
+          New Project
+        </Link>
+      </div>
+
       <div className="grid gap-4">
-        {projects.map((project) => (
-          <Link
-            key={project.id}
-            to={`/projects/${project.id}`}
-            className="block p-4 bg-gray-900 border border-gray-800 rounded-lg hover:border-gray-700 transition-colors"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Circle size={10} className={`fill-current ${STATUS_COLORS[project.status]}`} />
-                <div>
-                  <h3 className="font-medium">{project.name}</h3>
-                  <p className="text-sm text-gray-500">{project.technology}</p>
+        {projects.map((project, index) => {
+          const status = STATUS_CONFIG[project.status] || STATUS_CONFIG.stopped;
+          return (
+            <Link
+              key={project.id}
+              to={`/projects/${project.id}`}
+              className={`card card-interactive p-5 animate-fade-in stagger-${Math.min(index + 1, 4)}`}
+              style={{ opacity: 0 }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={`status-dot ${status.class}`} />
+                  <div>
+                    <h3 className="font-semibold text-[var(--text)]">{project.name}</h3>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="badge">{project.technology}</span>
+                      <span className="text-sm text-[var(--text-muted)]">{status.label}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <a
+                      href={project.url || `https://${project.subdomain}.openflow.dev`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-sm font-mono text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+                    >
+                      {project.url ? new URL(project.url).host : `${project.subdomain}.openflow.dev`}
+                    </a>
+                  </div>
+                  <div className="w-8 h-8 rounded-lg bg-[var(--surface)] flex items-center justify-center text-[var(--text-muted)] group-hover:text-[var(--accent)] transition-colors">
+                    <ExternalLink size={16} />
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-sm text-gray-500">
-                <span>{project.subdomain}.openflow.dev</span>
-                <ExternalLink size={14} />
-              </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

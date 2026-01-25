@@ -1,19 +1,19 @@
 import { useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 
 export function AuthCallback() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
 
   useEffect(() => {
     const token = searchParams.get('token');
     if (token) {
       localStorage.setItem('openflow_token', token);
-      navigate('/dashboard');
+      // Full page reload to ensure auth state is refreshed
+      window.location.href = '/dashboard';
     } else {
-      navigate('/');
+      window.location.href = '/';
     }
-  }, [searchParams, navigate]);
+  }, [searchParams]);
 
   return (
     <div className="flex items-center justify-center h-screen">
