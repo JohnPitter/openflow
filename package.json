@@ -1,0 +1,17 @@
+{
+  "name": "openflow",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces",
+    "dev:api": "npm run dev -w apps/api",
+    "dev:web": "npm run dev -w apps/web",
+    "build": "npm run build --workspaces",
+    "build:api": "npm run build -w apps/api",
+    "build:web": "npm run build -w apps/web"
+  }
+}
