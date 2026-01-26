@@ -8,4 +8,7 @@ dist/
 coverage/
 .vite/
 .playwright-mcp/
-docs/plans/
+
+# Local only
+CLAUDE.md
+docs/
