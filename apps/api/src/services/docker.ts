@@ -64,6 +64,13 @@ export interface ContainerStats {
 export { findAvailablePort, releasePort };
 
 export const dockerService = {
+  // Expose docker instance for advanced operations
+  docker,
+
+  async getInfo(): Promise<any> {
+    return docker.info();
+  },
+
   async pullImage(imageName: string): Promise<void> {
     const stream = await docker.pull(imageName);
     return new Promise((resolve, reject) => {

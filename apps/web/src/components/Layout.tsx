@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { LayoutDashboard, Database, Shield, LogOut, Plus, Zap, Globe } from 'lucide-react';
+import { LayoutDashboard, Database, Shield, LogOut, Plus, Zap, Globe, BookOpen } from 'lucide-react';
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -11,6 +11,7 @@ export function Layout() {
     { path: '/databases', label: 'Databases', icon: Database },
     { path: '/settings/env', label: 'Environment', icon: Globe },
     ...(user?.isAdmin ? [{ path: '/admin', label: 'Admin', icon: Shield }] : []),
+    { path: '/setup', label: 'Setup Guide', icon: BookOpen },
   ];
 
   return (

@@ -8,6 +8,8 @@ import { NewProject } from './pages/NewProject';
 import { Databases } from './pages/Databases';
 import { GlobalEnvVars } from './pages/GlobalEnvVars';
 import { Admin } from './pages/Admin';
+import { Requirements } from './pages/Requirements';
+import { Setup } from './pages/Setup';
 import { Layout } from './components/Layout';
 import { Zap } from 'lucide-react';
 
@@ -32,6 +34,8 @@ export function App() {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/setup" element={<Setup />} />
+      <Route path="/requirements" element={user ? <Requirements /> : <Navigate to="/" />} />
       <Route element={user ? <Layout /> : <Navigate to="/" />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/projects/new" element={<NewProject />} />

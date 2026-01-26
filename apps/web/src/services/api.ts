@@ -71,6 +71,22 @@ export const api = {
     updateEnv: (envVars: Record<string, string>) =>
       request<{ updated: boolean }>('/settings/env', { method: 'PUT', body: JSON.stringify({ envVars }) }),
   },
+
+  health: {
+    requirements: () =>
+      request<{
+        status: 'ok' | 'warning' | 'error';
+        message: string;
+        requirements: Array<{
+          name: string;
+          description: string;
+          status: 'ok' | 'warning' | 'error';
+          message: string;
+          details?: string;
+        }>;
+      }>('/health/requirements'),
+    ping: () => request<{ status: string }>('/health/ping'),
+  },
 };
 
 export function createWebSocket(projectId: string): WebSocket {

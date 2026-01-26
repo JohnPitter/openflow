@@ -9,6 +9,7 @@ import { databaseRoutes, devModeDatabases } from './modules/databases/routes.js'
 import { adminRoutes } from './modules/admin/routes.js';
 import { metricsRoutes } from './modules/metrics/routes.js';
 import { settingsRoutes } from './modules/settings/routes.js';
+import { healthRoutes } from './modules/health/routes.js';
 import { websocketHandler } from './websocket/handler.js';
 import { dockerService } from './services/docker.js';
 
@@ -128,6 +129,7 @@ async function start() {
   await app.register(adminRoutes, { prefix: '/api/admin' });
   await app.register(metricsRoutes, { prefix: '/api/metrics' });
   await app.register(settingsRoutes, { prefix: '/api/settings' });
+  await app.register(healthRoutes, { prefix: '/api/health' });
   await app.register(websocketHandler, { prefix: '/ws' });
 
   // Health check

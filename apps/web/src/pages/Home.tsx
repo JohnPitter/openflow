@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
-import { Github, ArrowRight, Terminal, Box, Zap, Lock, Code } from 'lucide-react';
+import { Github, ArrowRight, Terminal, Box, Zap, Lock, Code, BookOpen } from 'lucide-react';
 
 export function Home() {
   const { user } = useAuth();
@@ -480,6 +480,10 @@ export function Home() {
           </Link>
         ) : (
           <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Link to="/setup" className="nav-btn">
+              <BookOpen size={16} />
+              Setup Guide
+            </Link>
             {devMode && (
               <a href="/api/auth/dev" className="nav-btn primary">
                 <Code size={16} />
@@ -616,6 +620,10 @@ export function Home() {
 
       {/* Footer */}
       <footer className="footer">
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', marginBottom: '1rem' }}>
+          <Link to="/setup" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Setup Guide</Link>
+          <a href="https://github.com/JohnPitter/openflow" target="_blank" rel="noopener" style={{ color: 'var(--accent)', textDecoration: 'none' }}>GitHub</a>
+        </div>
         <p>OpenFlow — Self-hosted PaaS for developers</p>
       </footer>
     </div>
