@@ -7,19 +7,49 @@ import { githubService } from '../../services/github.js';
 import { builderService } from '../../services/builder.js';
 import { traefikService } from '../../services/traefik.js';
 import { config } from '../../config.js';
+import { getGlobalEnvArray } from '../settings/routes.js';
 
 // In-memory storage for dev mode projects (exported for metrics access)
 export const devModeProjects: Map<string, any> = new Map();
 export const devModeDeployments: Map<string, any[]> = new Map();
+
+// Sync project status with actual Docker container state
+async function syncProjectStatus(project: any): Promise<any> {
+  if (!project.containerId) {
+    project.status = 'stopped';
+    return project;
+  }
+
+  try {
+    const status = await dockerService.getContainerStatus(project.containerId);
+    if (status === 'running') {
+      project.status = 'running';
+    } else if (status === 'exited' || status === 'dead') {
+      project.status = 'stopped';
+    } else {
+      project.status = status;
+    }
+  } catch {
+    // Container doesn't exist anymore
+    project.status = 'stopped';
+    project.containerId = null;
+  }
+
+  devModeProjects.set(project.id, project);
+  return project;
+}
 
 export async function projectRoutes(app: FastifyInstance) {
   // List user projects
   app.get('/', { preHandler: [(app as any).authenticate] }, async (request) => {
     const { id } = request.user as { id: string };
 
-    // Dev mode: return in-memory projects
+    // Dev mode: return in-memory projects with synced status
     if (config.devMode) {
-      return Array.from(devModeProjects.values()).filter((p) => p.userId === id);
+      const projects = Array.from(devModeProjects.values()).filter((p) => p.userId === id);
+      // Sync status for all projects
+      const synced = await Promise.all(projects.map(syncProjectStatus));
+      return synced;
     }
 
     return db.select().from(schema.projects).where(eq(schema.projects.userId, id));
@@ -30,13 +60,13 @@ export async function projectRoutes(app: FastifyInstance) {
     const { id: userId } = request.user as { id: string };
     const { id } = request.params as { id: string };
 
-    // Dev mode: return from in-memory storage
+    // Dev mode: return from in-memory storage with synced status
     if (config.devMode) {
       const project = devModeProjects.get(id);
       if (!project || project.userId !== userId) {
         return reply.code(404).send({ error: 'Project not found' });
       }
-      return project;
+      return syncProjectStatus(project);
     }
 
     const [project] = await db
@@ -98,13 +128,21 @@ export async function projectRoutes(app: FastifyInstance) {
         const projectUrl = `http://localhost:${hostPort}`;
 
         // Create and start container with exposed port
+        const technology = detection.framework || detection.technology;
         const containerId = await dockerService.createContainer({
           name: `openflow-${projectId}`.toLowerCase(),
           image: imageName,
-          labels: { 'openflow.port': String(hostPort) },
+          labels: {
+            'openflow.port': String(hostPort),
+            'openflow.name': name,
+            'openflow.technology': technology,
+            'openflow.repoUrl': repoUrl,
+            'openflow.branch': branchName,
+            'openflow.subdomain': subdomain,
+          },
           cpus: limits.cpus,
           memory: limits.memory,
-          env: [],
+          env: [...getGlobalEnvArray()], // Global env vars for new projects
           exposedPort: detection.port,
           hostPort,
         });
@@ -179,7 +217,7 @@ export async function projectRoutes(app: FastifyInstance) {
         cpus: limits.cpus,
         memory: limits.memory,
         networkName,
-        env: JSON.parse('[]'), // TODO: parse envVars from request
+        env: [...getGlobalEnvArray()], // Global env vars for new projects
       });
 
       // Save project
@@ -273,14 +311,22 @@ export async function projectRoutes(app: FastifyInstance) {
         const limits = config.resources.pro;
         // Reuse existing port or get a new one
         const hostPort = project.port || await findAvailablePort(4000);
+        const technology = detection.framework || detection.technology;
 
         const containerId = await dockerService.createContainer({
           name: `openflow-${id}`.toLowerCase(),
           image: imageName,
-          labels: { 'openflow.port': String(hostPort) },
+          labels: {
+            'openflow.port': String(hostPort),
+            'openflow.name': project.name,
+            'openflow.technology': technology,
+            'openflow.repoUrl': project.repoUrl,
+            'openflow.branch': project.branch,
+            'openflow.subdomain': project.subdomain,
+          },
           cpus: limits.cpus,
           memory: limits.memory,
-          env: JSON.parse(project.envVars || '[]'),
+          env: [...getGlobalEnvArray(), ...Object.entries(JSON.parse(project.envVars || '{}')).map(([k, v]) => `${k}=${v}`)],
           exposedPort: detection.port,
           hostPort,
         });
@@ -354,7 +400,7 @@ export async function projectRoutes(app: FastifyInstance) {
         cpus: limits.cpus,
         memory: limits.memory,
         networkName,
-        env: JSON.parse(project.envVars || '[]'),
+        env: [...getGlobalEnvArray(), ...Object.entries(JSON.parse(project.envVars || '{}')).map(([k, v]) => `${k}=${v}`)],
       });
 
       await db

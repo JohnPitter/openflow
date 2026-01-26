@@ -74,7 +74,13 @@ export async function databaseRoutes(app: FastifyInstance) {
   // Create database
   app.post('/', { preHandler: [(app as any).authenticate] }, async (request, reply) => {
     const { id: userId } = request.user as { id: string };
-    const { type, name, projectId } = request.body as { type: string; name: string; projectId?: string };
+    const { type, name, projectId, username: customUsername, password: customPassword } = request.body as {
+      type: string;
+      name: string;
+      projectId?: string;
+      username?: string;
+      password?: string;
+    };
 
     if (!DB_IMAGES[type]) {
       return reply.code(400).send({ error: 'Unsupported database type' });
@@ -83,8 +89,8 @@ export async function databaseRoutes(app: FastifyInstance) {
     const dbConfig = DB_IMAGES[type];
     const dbId = nanoid();
     const dbName = name || `${type}-${dbId.slice(0, 6)}`;
-    const username = `user_${dbId.slice(0, 8)}`;
-    const password = generatePassword();
+    const username = customUsername?.trim() || `user_${dbId.slice(0, 8)}`;
+    const password = customPassword || generatePassword();
     const networkName = `openflow-${userId}-net`;
 
     // Ensure network exists
@@ -93,6 +99,9 @@ export async function databaseRoutes(app: FastifyInstance) {
     } catch (e: any) {
       if (!e.message?.includes('already exists')) throw e;
     }
+
+    // Ensure image exists (pull if needed)
+    await dockerService.ensureImage(dbConfig.image);
 
     // Build env vars
     const env: string[] = [];
@@ -124,6 +133,13 @@ export async function databaseRoutes(app: FastifyInstance) {
               : type === 'mongodb'
                 ? '/data/db'
                 : '/data',
+      },
+      labels: {
+        'openflow.db.name': dbName,
+        'openflow.db.type': type,
+        'openflow.db.port': String(dbConfig.port),
+        'openflow.db.username': username,
+        'openflow.db.password': password,
       },
     });
 

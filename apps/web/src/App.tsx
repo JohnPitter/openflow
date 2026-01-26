@@ -6,6 +6,7 @@ import { Dashboard } from './pages/Dashboard';
 import { ProjectDetail } from './pages/ProjectDetail';
 import { NewProject } from './pages/NewProject';
 import { Databases } from './pages/Databases';
+import { GlobalEnvVars } from './pages/GlobalEnvVars';
 import { Admin } from './pages/Admin';
 import { Layout } from './components/Layout';
 import { Zap } from 'lucide-react';
@@ -36,6 +37,7 @@ export function App() {
         <Route path="/projects/new" element={<NewProject />} />
         <Route path="/projects/:id" element={<ProjectDetail />} />
         <Route path="/databases" element={<Databases />} />
+        <Route path="/settings/env" element={<GlobalEnvVars />} />
         <Route path="/admin" element={user?.isAdmin ? <Admin /> : <Navigate to="/dashboard" />} />
       </Route>
     </Routes>

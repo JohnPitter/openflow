@@ -64,6 +64,25 @@ export interface ContainerStats {
 export { findAvailablePort, releasePort };
 
 export const dockerService = {
+  async pullImage(imageName: string): Promise<void> {
+    const stream = await docker.pull(imageName);
+    return new Promise((resolve, reject) => {
+      docker.modem.followProgress(stream, (err: any) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  },
+
+  async ensureImage(imageName: string): Promise<void> {
+    try {
+      await docker.getImage(imageName).inspect();
+    } catch {
+      // Image doesn't exist, pull it
+      await this.pullImage(imageName);
+    }
+  },
+
   async buildImage(contextPath: string, tag: string, dockerfile?: string): Promise<string> {
     const stream = await docker.buildImage(
       { context: contextPath, src: ['.'] },

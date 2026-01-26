@@ -37,8 +37,8 @@ export const api = {
     get: (id: string) => request<any>(`/projects/${id}`),
     create: (data: { name: string; repoUrl?: string; branch?: string; localPath?: string }) =>
       request<any>('/projects', { method: 'POST', body: JSON.stringify(data) }),
-    redeploy: (id: string) => request<any>(`/projects/${id}/redeploy`, { method: 'POST' }),
-    stop: (id: string) => request<any>(`/projects/${id}/stop`, { method: 'POST' }),
+    redeploy: (id: string) => request<any>(`/projects/${id}/redeploy`, { method: 'POST', body: '{}' }),
+    stop: (id: string) => request<any>(`/projects/${id}/stop`, { method: 'POST', body: '{}' }),
     delete: (id: string) => request<void>(`/projects/${id}`, { method: 'DELETE' }),
     updateEnv: (id: string, envVars: Record<string, string>) =>
       request<any>(`/projects/${id}/env`, { method: 'PUT', body: JSON.stringify({ envVars }) }),
@@ -47,7 +47,7 @@ export const api = {
 
   databases: {
     list: () => request<any[]>('/databases'),
-    create: (data: { type: string; name: string; projectId?: string }) =>
+    create: (data: { type: string; name: string; projectId?: string; username?: string; password?: string }) =>
       request<any>('/databases', { method: 'POST', body: JSON.stringify(data) }),
     delete: (id: string) => request<void>(`/databases/${id}`, { method: 'DELETE' }),
     connection: (id: string) => request<any>(`/databases/${id}/connection`),
@@ -61,8 +61,15 @@ export const api = {
   admin: {
     overview: () => request<any>('/admin/overview'),
     containers: () => request<any[]>('/admin/containers'),
+    databases: () => request<any[]>('/admin/databases'),
     alerts: () => request<any[]>('/admin/alerts'),
     userCount: () => request<{ count: number }>('/admin/users/count'),
+  },
+
+  settings: {
+    getEnv: () => request<{ envVars: Record<string, string> }>('/settings/env'),
+    updateEnv: (envVars: Record<string, string>) =>
+      request<{ updated: boolean }>('/settings/env', { method: 'PUT', body: JSON.stringify({ envVars }) }),
   },
 };
 

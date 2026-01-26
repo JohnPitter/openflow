@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api, createWebSocket } from '../services/api';
-import { RefreshCw, Square, Trash2, ExternalLink, GitBranch, Cpu, HardDrive, Wifi, Terminal, Loader2, AlertCircle, X } from 'lucide-react';
+import { RefreshCw, Square, Trash2, ExternalLink, GitBranch, Cpu, HardDrive, Wifi, Terminal, Loader2, AlertCircle, X, Settings, Plus, Eye, EyeOff, Save, Check } from 'lucide-react';
 
 const STATUS_CONFIG: Record<string, { class: string; label: string; color: string }> = {
   running: { class: 'status-running', label: 'Running', color: 'text-[var(--success)]' },
@@ -20,6 +20,13 @@ export function ProjectDetail() {
   const [redeploying, setRedeploying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [envVars, setEnvVars] = useState<{ key: string; value: string }[]>([]);
+  const [newEnvKey, setNewEnvKey] = useState('');
+  const [newEnvValue, setNewEnvValue] = useState('');
+  const [showEnvValues, setShowEnvValues] = useState<Record<string, boolean>>({});
+  const [savingEnv, setSavingEnv] = useState(false);
+  const [envSaved, setEnvSaved] = useState(false);
+  const [envDirty, setEnvDirty] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -27,7 +34,20 @@ export function ProjectDetail() {
     if (!id) return;
     api.projects
       .get(id)
-      .then(setProject)
+      .then((proj) => {
+        setProject(proj);
+        // Parse existing env vars
+        try {
+          const parsed = JSON.parse(proj.envVars || '{}');
+          const envArray = Object.entries(parsed).map(([key, value]) => ({
+            key,
+            value: value as string,
+          }));
+          setEnvVars(envArray);
+        } catch {
+          setEnvVars([]);
+        }
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -88,6 +108,58 @@ export function ProjectDetail() {
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  };
+
+  const addEnvVar = () => {
+    if (!newEnvKey.trim()) return;
+    // Check for duplicate keys
+    if (envVars.some((env) => env.key === newEnvKey.trim())) {
+      setError(`Environment variable "${newEnvKey}" already exists`);
+      return;
+    }
+    setEnvVars([...envVars, { key: newEnvKey.trim(), value: newEnvValue }]);
+    setNewEnvKey('');
+    setNewEnvValue('');
+    setEnvDirty(true);
+  };
+
+  const updateEnvVar = (index: number, field: 'key' | 'value', value: string) => {
+    const updated = [...envVars];
+    updated[index] = { ...updated[index], [field]: value };
+    setEnvVars(updated);
+    setEnvDirty(true);
+  };
+
+  const deleteEnvVar = (index: number) => {
+    setEnvVars(envVars.filter((_, i) => i !== index));
+    setEnvDirty(true);
+  };
+
+  const saveEnvVars = async () => {
+    if (!id) return;
+    setSavingEnv(true);
+    setError(null);
+    try {
+      const envObject = envVars.reduce(
+        (acc, { key, value }) => {
+          if (key.trim()) acc[key.trim()] = value;
+          return acc;
+        },
+        {} as Record<string, string>
+      );
+      await api.projects.updateEnv(id, envObject);
+      setEnvDirty(false);
+      setEnvSaved(true);
+      setTimeout(() => setEnvSaved(false), 2000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to save environment variables');
+    } finally {
+      setSavingEnv(false);
+    }
+  };
+
+  const toggleEnvVisibility = (key: string) => {
+    setShowEnvValues((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   if (loading) {
@@ -154,15 +226,22 @@ export function ProjectDetail() {
             <span className="badge">{project.technology}</span>
           </div>
           <div className="flex items-center gap-4 text-sm text-[var(--text-muted)]">
-            <a
-              href={project.url || `https://${project.subdomain}.openflow.dev`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 hover:text-[var(--accent)] transition-colors"
-            >
-              <ExternalLink size={14} />
-              {project.url ? new URL(project.url).host : `${project.subdomain}.openflow.dev`}
-            </a>
+            {project.status === 'running' ? (
+              <a
+                href={project.url || `https://${project.subdomain}.openflow.dev`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 hover:text-[var(--accent)] transition-colors"
+              >
+                <ExternalLink size={14} />
+                {project.url ? new URL(project.url).host : `${project.subdomain}.openflow.dev`}
+              </a>
+            ) : (
+              <span className="flex items-center gap-1.5">
+                <ExternalLink size={14} />
+                {project.status === 'building' ? 'Deploying...' : 'Offline'}
+              </span>
+            )}
             <span className="flex items-center gap-1.5">
               <GitBranch size={14} />
               {project.branch}
@@ -217,9 +296,20 @@ export function ProjectDetail() {
         </div>
         <div className="card p-5">
           <p className="text-sm text-[var(--text-muted)] mb-1">URL</p>
-          <p className="text-lg font-mono font-medium truncate">
-            {project.url ? new URL(project.url).host : `${project.subdomain}.openflow.dev`}
-          </p>
+          {project.status === 'running' ? (
+            <a
+              href={project.url || `https://${project.subdomain}.openflow.dev`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-lg font-mono font-medium truncate hover:text-[var(--accent)] transition-colors block"
+            >
+              {project.url ? new URL(project.url).host : `${project.subdomain}.openflow.dev`}
+            </a>
+          ) : (
+            <p className="text-lg font-mono font-medium text-[var(--text-muted)]">
+              {project.status === 'building' ? 'Deploying...' : 'Offline'}
+            </p>
+          )}
         </div>
       </div>
 
@@ -276,6 +366,127 @@ export function ProjectDetail() {
           </div>
         </div>
       )}
+
+      {/* Environment Variables */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Settings size={18} className="text-[var(--accent)]" />
+            <h2 className="text-lg font-semibold">Environment Variables</h2>
+            {envDirty && (
+              <span className="text-xs text-[var(--warning)] ml-2">Unsaved changes</span>
+            )}
+          </div>
+          <button
+            onClick={saveEnvVars}
+            disabled={savingEnv || !envDirty}
+            className="btn btn-primary disabled:opacity-50"
+          >
+            {savingEnv ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Saving...
+              </>
+            ) : envSaved ? (
+              <>
+                <Check size={16} className="text-[var(--success)]" />
+                Saved!
+              </>
+            ) : (
+              <>
+                <Save size={16} />
+                Save Changes
+              </>
+            )}
+          </button>
+        </div>
+
+        <div className="card p-5 space-y-4">
+          {/* Existing env vars */}
+          {envVars.length > 0 && (
+            <div className="space-y-3">
+              {envVars.map((env, index) => (
+                <div key={index} className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    value={env.key}
+                    onChange={(e) => updateEnvVar(index, 'key', e.target.value)}
+                    placeholder="KEY"
+                    className="input font-mono text-sm flex-1"
+                  />
+                  <span className="text-[var(--text-muted)]">=</span>
+                  <div className="flex-[2] relative">
+                    <input
+                      type={showEnvValues[env.key] ? 'text' : 'password'}
+                      value={env.value}
+                      onChange={(e) => updateEnvVar(index, 'value', e.target.value)}
+                      placeholder="value"
+                      className="input font-mono text-sm w-full pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => toggleEnvVisibility(env.key)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-[var(--surface)] rounded"
+                    >
+                      {showEnvValues[env.key] ? (
+                        <EyeOff size={16} className="text-[var(--text-muted)]" />
+                      ) : (
+                        <Eye size={16} className="text-[var(--text-muted)]" />
+                      )}
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => deleteEnvVar(index)}
+                    className="p-2 hover:bg-[var(--danger)]/10 rounded-lg text-[var(--danger)] transition-colors"
+                    title="Delete variable"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add new env var */}
+          <div className="flex items-center gap-3 pt-3 border-t border-[var(--border)]">
+            <input
+              type="text"
+              value={newEnvKey}
+              onChange={(e) => setNewEnvKey(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '_'))}
+              placeholder="NEW_VARIABLE"
+              className="input font-mono text-sm flex-1"
+              onKeyDown={(e) => e.key === 'Enter' && addEnvVar()}
+            />
+            <span className="text-[var(--text-muted)]">=</span>
+            <input
+              type="text"
+              value={newEnvValue}
+              onChange={(e) => setNewEnvValue(e.target.value)}
+              placeholder="value"
+              className="input font-mono text-sm flex-[2]"
+              onKeyDown={(e) => e.key === 'Enter' && addEnvVar()}
+            />
+            <button
+              onClick={addEnvVar}
+              disabled={!newEnvKey.trim()}
+              className="btn btn-secondary disabled:opacity-50"
+            >
+              <Plus size={16} />
+              Add
+            </button>
+          </div>
+
+          {envVars.length === 0 && !newEnvKey && (
+            <p className="text-sm text-[var(--text-muted)] text-center py-4">
+              No environment variables configured. Add your first variable above.
+            </p>
+          )}
+
+          <p className="text-xs text-[var(--text-muted)] pt-2">
+            After saving, redeploy the application for changes to take effect.
+          </p>
+        </div>
+      </div>
 
       {/* Logs */}
       <div>

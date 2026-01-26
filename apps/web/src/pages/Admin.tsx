@@ -1,18 +1,25 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { Cpu, HardDrive, Box, AlertTriangle, Activity } from 'lucide-react';
+import { Cpu, HardDrive, Box, AlertTriangle, Activity, Database } from 'lucide-react';
 
 export function Admin() {
   const [overview, setOverview] = useState<any>(null);
   const [containers, setContainers] = useState<any[]>([]);
+  const [databases, setDatabases] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([api.admin.overview(), api.admin.containers(), api.admin.alerts()])
-      .then(([ov, ct, al]) => {
+    Promise.all([
+      api.admin.overview(),
+      api.admin.containers(),
+      api.admin.databases(),
+      api.admin.alerts(),
+    ])
+      .then(([ov, ct, dbs, al]) => {
         setOverview(ov);
         setContainers(ct);
+        setDatabases(dbs);
         setAlerts(al);
       })
       .finally(() => setLoading(false));
@@ -22,8 +29,8 @@ export function Admin() {
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="h-8 w-48 bg-[var(--surface)] rounded-lg animate-pulse" />
-        <div className="grid grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid grid-cols-5 gap-4">
+          {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="h-28 bg-[var(--surface)] rounded-xl animate-pulse" />
           ))}
         </div>
@@ -51,7 +58,7 @@ export function Admin() {
       </div>
 
       {/* Overview cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         <div className="card p-5">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center">
@@ -62,6 +69,19 @@ export function Admin() {
           <p className="text-3xl font-bold">{overview?.projects.total || 0}</p>
           <p className="text-sm text-[var(--success)] mt-1">
             {overview?.projects.running || 0} running
+          </p>
+        </div>
+
+        <div className="card p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <Database size={20} className="text-blue-400" />
+            </div>
+            <span className="text-sm text-[var(--text-muted)]">Databases</span>
+          </div>
+          <p className="text-3xl font-bold">{overview?.databases?.total || 0}</p>
+          <p className="text-sm text-[var(--success)] mt-1">
+            {overview?.databases?.running || 0} running
           </p>
         </div>
 
@@ -145,7 +165,7 @@ export function Admin() {
       <div>
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Activity size={18} className="text-[var(--accent)]" />
-          Running Containers
+          Project Containers
         </h2>
         <div className="card overflow-hidden">
           <table className="table">
@@ -161,7 +181,7 @@ export function Admin() {
               {containers.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="text-center py-8 text-[var(--text-muted)]">
-                    No containers running
+                    No project containers
                   </td>
                 </tr>
               ) : (
@@ -181,6 +201,55 @@ export function Admin() {
                     </td>
                     <td className="font-mono text-sm">
                       {c.currentStats ? formatBytes(c.currentStats.memoryUsage) : '-'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Databases table */}
+      <div>
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Database size={18} className="text-blue-400" />
+          Database Containers
+        </h2>
+        <div className="card overflow-hidden">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Memory</th>
+              </tr>
+            </thead>
+            <tbody>
+              {databases.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="text-center py-8 text-[var(--text-muted)]">
+                    No database containers
+                  </td>
+                </tr>
+              ) : (
+                databases.map((db) => (
+                  <tr key={db.id}>
+                    <td className="font-medium text-[var(--text)]">{db.name}</td>
+                    <td>
+                      <span className="badge">{db.type}</span>
+                    </td>
+                    <td>
+                      <span className={`inline-flex items-center gap-2 ${
+                        db.status === 'running' ? 'text-[var(--success)]' : 'text-[var(--text-muted)]'
+                      }`}>
+                        <span className={`status-dot ${db.status === 'running' ? 'status-running' : 'status-stopped'}`} />
+                        {db.status}
+                      </span>
+                    </td>
+                    <td className="font-mono text-sm">
+                      {db.currentStats ? formatBytes(db.currentStats.memoryUsage) : '-'}
                     </td>
                   </tr>
                 ))

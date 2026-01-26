@@ -5,6 +5,7 @@ import { db, schema } from '../../db/index.js';
 import { dockerService } from '../../services/docker.js';
 import { config } from '../../config.js';
 import { devModeProjects } from '../projects/routes.js';
+import { devModeDatabases } from '../databases/routes.js';
 
 // Get real system resources using Node.js os module
 function getSystemResources() {
@@ -30,7 +31,7 @@ export async function adminRoutes(app: FastifyInstance) {
     // Always get real system resources
     const systemResources = getSystemResources();
 
-    // Dev mode: get real stats from in-memory projects
+    // Dev mode: get real stats from in-memory projects and databases
     if (config.devMode) {
       const allProjects = Array.from(devModeProjects.values());
       const running = allProjects.filter((p) => p.status === 'running').length;
@@ -38,8 +39,13 @@ export async function adminRoutes(app: FastifyInstance) {
       const building = allProjects.filter((p) => p.status === 'building').length;
       const failed = allProjects.filter((p) => p.status === 'failed').length;
 
+      const allDatabases = Array.from(devModeDatabases.values());
+      const dbRunning = allDatabases.filter((d) => d.status === 'running').length;
+      const dbStopped = allDatabases.filter((d) => d.status === 'stopped').length;
+
       return {
         projects: { total: allProjects.length, running, stopped, building, failed },
+        databases: { total: allDatabases.length, running: dbRunning, stopped: dbStopped },
         system: systemResources,
       };
     }
@@ -50,8 +56,13 @@ export async function adminRoutes(app: FastifyInstance) {
     const building = allProjects.filter((p) => p.status === 'building').length;
     const failed = allProjects.filter((p) => p.status === 'failed').length;
 
+    const allDatabases = await db.select().from(schema.databases);
+    const dbRunning = allDatabases.filter((d) => d.status === 'running').length;
+    const dbStopped = allDatabases.filter((d) => d.status === 'stopped').length;
+
     return {
       projects: { total: allProjects.length, running, stopped, building, failed },
+      databases: { total: allDatabases.length, running: dbRunning, stopped: dbStopped },
       system: systemResources,
     };
   });
@@ -124,6 +135,73 @@ export async function adminRoutes(app: FastifyInstance) {
     );
 
     return containersWithStats;
+  });
+
+  // List all database containers
+  app.get('/databases', { preHandler: [adminGuard] }, async () => {
+    // Dev mode: get database containers from in-memory storage
+    if (config.devMode) {
+      const databases = Array.from(devModeDatabases.values());
+
+      const dbContainers = await Promise.all(
+        databases.map(async (database) => {
+          let stats = null;
+          if (database.containerId && database.status === 'running') {
+            try {
+              stats = await dockerService.getContainerStats(database.containerId);
+            } catch (e) {
+              // Container might be unavailable
+            }
+          }
+
+          return {
+            id: database.id,
+            name: database.name,
+            type: database.type,
+            status: database.status,
+            currentStats: stats,
+            createdAt: database.createdAt,
+          };
+        })
+      );
+
+      return dbContainers;
+    }
+
+    const databases = await db
+      .select({
+        id: schema.databases.id,
+        name: schema.databases.name,
+        type: schema.databases.type,
+        status: schema.databases.status,
+        containerId: schema.databases.containerId,
+        createdAt: schema.databases.createdAt,
+      })
+      .from(schema.databases);
+
+    const dbContainers = await Promise.all(
+      databases.map(async (database) => {
+        let stats = null;
+        if (database.containerId && database.status === 'running') {
+          try {
+            stats = await dockerService.getContainerStats(database.containerId);
+          } catch (e) {
+            // Container might be unavailable
+          }
+        }
+
+        return {
+          id: database.id,
+          name: database.name,
+          type: database.type,
+          status: database.status,
+          currentStats: stats,
+          createdAt: database.createdAt,
+        };
+      })
+    );
+
+    return dbContainers;
   });
 
   // Get alerts

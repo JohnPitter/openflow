@@ -69,15 +69,19 @@ export function Dashboard() {
       <div className="grid gap-4">
         {projects.map((project, index) => {
           const status = STATUS_CONFIG[project.status] || STATUS_CONFIG.stopped;
+          const projectUrl = project.url || `https://${project.subdomain}.openflow.dev`;
+          const displayHost = project.url ? new URL(project.url).host : `${project.subdomain}.openflow.dev`;
           return (
-            <Link
+            <div
               key={project.id}
-              to={`/projects/${project.id}`}
-              className={`card card-interactive p-5 animate-fade-in stagger-${Math.min(index + 1, 4)}`}
+              className={`card p-5 animate-fade-in stagger-${Math.min(index + 1, 4)}`}
               style={{ opacity: 0 }}
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+                <Link
+                  to={`/projects/${project.id}`}
+                  className="flex items-center gap-4 flex-1 hover:opacity-80 transition-opacity"
+                >
                   <div className={`status-dot ${status.class}`} />
                   <div>
                     <h3 className="font-semibold text-[var(--text)]">{project.name}</h3>
@@ -86,25 +90,26 @@ export function Dashboard() {
                       <span className="text-sm text-[var(--text-muted)]">{status.label}</span>
                     </div>
                   </div>
-                </div>
+                </Link>
                 <div className="flex items-center gap-4">
-                  <div className="text-right">
+                  {project.status === 'running' ? (
                     <a
-                      href={project.url || `https://${project.subdomain}.openflow.dev`}
+                      href={projectUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-sm font-mono text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+                      className="flex items-center gap-2 text-sm font-mono text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
                     >
-                      {project.url ? new URL(project.url).host : `${project.subdomain}.openflow.dev`}
+                      {displayHost}
+                      <ExternalLink size={16} />
                     </a>
-                  </div>
-                  <div className="w-8 h-8 rounded-lg bg-[var(--surface)] flex items-center justify-center text-[var(--text-muted)] group-hover:text-[var(--accent)] transition-colors">
-                    <ExternalLink size={16} />
-                  </div>
+                  ) : (
+                    <span className="text-sm text-[var(--text-muted)]">
+                      {project.status === 'building' ? 'Deploying...' : 'Offline'}
+                    </span>
+                  )}
                 </div>
               </div>
-            </Link>
+            </div>
           );
         })}
       </div>
