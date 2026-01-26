@@ -16,7 +16,11 @@ export const config = {
   },
 
   jwt: {
-    secret: process.env.JWT_SECRET!,
+    secret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
+  },
+
+  webhook: {
+    secret: process.env.WEBHOOK_SECRET || 'dev-webhook-secret-change-in-production',
   },
 
   database: {

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { nanoid } from 'nanoid';
 import { eq, and } from 'drizzle-orm';
+import crypto from 'crypto';
 import { db, schema } from '../../db/index.js';
 import { dockerService, findAvailablePort, releasePort } from '../../services/docker.js';
 import { githubService } from '../../services/github.js';
@@ -8,6 +9,48 @@ import { builderService } from '../../services/builder.js';
 import { traefikService } from '../../services/traefik.js';
 import { config } from '../../config.js';
 import { getGlobalEnvArray } from '../settings/routes.js';
+
+// Input validation patterns
+const GITHUB_URL_PATTERN = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+(?:\.git)?$/;
+const PROJECT_NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/;
+const BRANCH_NAME_PATTERN = /^[\w\-./]+$/;
+
+function validateProjectInput(name: string, repoUrl?: string, branch?: string): string | null {
+  if (!name || name.length < 1 || name.length > 50) {
+    return 'Project name must be between 1 and 50 characters';
+  }
+  if (!PROJECT_NAME_PATTERN.test(name)) {
+    return 'Project name can only contain letters, numbers, and hyphens (cannot start/end with hyphen)';
+  }
+  if (repoUrl && !GITHUB_URL_PATTERN.test(repoUrl)) {
+    return 'Invalid GitHub repository URL. Format: https://github.com/owner/repo';
+  }
+  if (branch && !BRANCH_NAME_PATTERN.test(branch)) {
+    return 'Invalid branch name. Only letters, numbers, hyphens, dots, and slashes allowed';
+  }
+  if (branch && branch.length > 100) {
+    return 'Branch name too long (max 100 characters)';
+  }
+  return null;
+}
+
+function verifyWebhookSignature(payload: string, signature: string | undefined): boolean {
+  if (!signature) return false;
+
+  const expectedSignature = `sha256=${crypto
+    .createHmac('sha256', config.webhook.secret)
+    .update(payload)
+    .digest('hex')}`;
+
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(expectedSignature)
+    );
+  } catch {
+    return false;
+  }
+}
 
 // In-memory storage for dev mode projects (exported for metrics access)
 export const devModeProjects: Map<string, any> = new Map();
@@ -86,6 +129,12 @@ export async function projectRoutes(app: FastifyInstance) {
       name: string;
       branch?: string;
     };
+
+    // Input validation
+    const validationError = validateProjectInput(name, repoUrl, branch);
+    if (validationError) {
+      return reply.code(400).send({ error: validationError });
+    }
 
     if (!repoUrl) {
       return reply.code(400).send({ error: 'repoUrl is required' });
@@ -255,12 +304,12 @@ export async function projectRoutes(app: FastifyInstance) {
           owner,
           repo,
           `https://${config.domain.base}/api/projects/${projectId}/webhook`,
-          branch
+          branchName
         );
         await db.update(schema.projects).set({ webhookId }).where(eq(schema.projects.id, projectId));
-      } catch (e) {
+      } catch (e: any) {
         // Webhook creation is non-critical
-        app.log.warn('Failed to create webhook', e);
+        app.log.warn(`Failed to create webhook: ${e.message}`);
       }
 
       return reply.code(201).send(project);
@@ -560,8 +609,23 @@ export async function projectRoutes(app: FastifyInstance) {
   });
 
   // Webhook handler (GitHub push events)
-  app.post('/:id/webhook', async (request, reply) => {
+  app.post('/:id/webhook', {
+    config: {
+      rawBody: true, // Need raw body for signature verification
+    },
+  }, async (request, reply) => {
     const { id } = request.params as { id: string };
+    const signature = request.headers['x-hub-signature-256'] as string | undefined;
+
+    // Verify webhook signature (skip in dev mode for testing)
+    if (!config.devMode) {
+      const rawBody = JSON.stringify(request.body);
+      if (!verifyWebhookSignature(rawBody, signature)) {
+        app.log.warn(`Invalid webhook signature for project ${id}`);
+        return reply.code(401).send({ error: 'Invalid webhook signature' });
+      }
+    }
+
     const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, id));
 
     if (!project) return reply.code(404).send({ error: 'Project not found' });

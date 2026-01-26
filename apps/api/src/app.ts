@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import websocket from '@fastify/websocket';
+import rateLimit from '@fastify/rate-limit';
 import { config } from './config.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { projectRoutes, devModeProjects } from './modules/projects/routes.js';
@@ -13,7 +14,10 @@ import { healthRoutes } from './modules/health/routes.js';
 import { websocketHandler } from './websocket/handler.js';
 import { dockerService } from './services/docker.js';
 
-const app = Fastify({ logger: true });
+const app = Fastify({
+  logger: true,
+  bodyLimit: 1048576, // 1MB max body size
+});
 
 // Restore projects and databases from running containers on startup
 async function syncContainersOnStartup() {
@@ -112,6 +116,17 @@ async function start() {
   await app.register(cors, { origin: true, credentials: true });
   await app.register(jwt, { secret: config.jwt.secret });
   await app.register(websocket);
+
+  // Rate limiting: 100 requests per minute per IP
+  await app.register(rateLimit, {
+    max: 100,
+    timeWindow: '1 minute',
+    errorResponseBuilder: () => ({
+      statusCode: 429,
+      error: 'Too Many Requests',
+      message: 'Rate limit exceeded. Please try again later.',
+    }),
+  });
 
   // Auth middleware decorator
   app.decorate('authenticate', async (request: any, reply: any) => {
