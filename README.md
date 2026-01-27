@@ -82,7 +82,24 @@ This starts:
 
 Complete guide to deploy OpenFlow on a fresh VPS.
 
-### 1. Requirements
+### Quick Install (Automated)
+
+Run this single command on a fresh Ubuntu 22.04+ VPS:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/JohnPitter/openflow/main/scripts/setup.sh | sudo bash
+```
+
+This automatically installs Docker, Node.js, PostgreSQL, and configures everything.
+
+To uninstall:
+```bash
+curl -fsSL https://raw.githubusercontent.com/JohnPitter/openflow/main/scripts/uninstall.sh | sudo bash
+```
+
+### Manual Installation
+
+#### 1. Requirements
 
 | Resource | Minimum | Recommended |
 |----------|---------|-------------|
@@ -93,7 +110,7 @@ Complete guide to deploy OpenFlow on a fresh VPS.
 
 **Recommended VPS providers:** DigitalOcean, Hetzner, Vultr, Linode, Contabo
 
-### 2. Initial Server Setup
+#### 2. Initial Server Setup
 
 ```bash
 # Connect to your VPS
@@ -111,7 +128,7 @@ usermod -aG sudo openflow
 su - openflow
 ```
 
-### 3. Install Docker
+#### 3. Install Docker
 
 ```bash
 # Install Docker
@@ -128,7 +145,7 @@ docker --version
 docker compose version
 ```
 
-### 4. Install Node.js
+#### 4. Install Node.js
 
 ```bash
 # Install Node.js 20 via NodeSource
@@ -140,7 +157,7 @@ node --version  # Should be v20.x.x
 npm --version
 ```
 
-### 5. Install OpenFlow
+#### 5. Install OpenFlow
 
 ```bash
 # Clone repository
@@ -180,7 +197,7 @@ API_URL=https://api.yourdomain.com
 WEB_URL=https://yourdomain.com
 ```
 
-### 6. Setup PostgreSQL
+#### 6. Setup PostgreSQL
 
 ```bash
 # Run PostgreSQL in Docker
@@ -198,7 +215,7 @@ docker run -d \
 cd apps/api && npx drizzle-kit push
 ```
 
-### 7. Configure Traefik (SSL & Routing)
+#### 7. Configure Traefik (SSL & Routing)
 
 Create `traefik/traefik.yml`:
 ```yaml
@@ -241,7 +258,7 @@ docker run -d \
   traefik:v3.0
 ```
 
-### 8. Run OpenFlow with PM2
+#### 8. Run OpenFlow with PM2
 
 ```bash
 # Install PM2
@@ -276,7 +293,7 @@ pm2 save
 pm2 startup
 ```
 
-### 9. Configure DNS
+#### 9. Configure DNS
 
 Point your domain to your VPS IP:
 ```
@@ -285,7 +302,7 @@ A    api.yourdomain.com    → YOUR_VPS_IP
 A    *.yourdomain.com      → YOUR_VPS_IP  (for project subdomains)
 ```
 
-### 10. Verify Installation
+#### 10. Verify Installation
 
 ```bash
 # Check services
@@ -298,7 +315,7 @@ curl http://localhost:3001/api/health/requirements
 # https://yourdomain.com
 ```
 
-### Troubleshooting
+#### Troubleshooting
 
 ```bash
 # View API logs
