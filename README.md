@@ -1,86 +1,100 @@
 # OpenFlow
 
-Self-hosted PaaS for deploying frontend, backend, and databases on your own VPS. Like Render or Railway, but under your control.
+<div align="center">
 
-![OpenFlow](https://img.shields.io/badge/OpenFlow-Self--hosted%20PaaS-00f0ff)
+![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue?style=for-the-badge&logo=typescript)
+![Node.js](https://img.shields.io/badge/Node.js-20+-green?style=for-the-badge&logo=nodedotjs)
+![Docker](https://img.shields.io/badge/Docker-Required-blue?style=for-the-badge&logo=docker)
+![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
+
+**Self-hosted PaaS for Your VPS**
+
+*Deploy frontend, backend, and databases like Render or Railway, but under your control*
+
+[Quick Start](#quick-start) •
+[Features](#features) •
+[VPS Setup](#vps-setup-guide) •
+[Configuration](#configuration) •
+[Documentation](#documentation)
+
+</div>
+
+---
+
+## Overview
+
+OpenFlow is a self-hosted Platform as a Service (PaaS) for deploying frontend, backend, and database applications on your own VPS. It provides auto-detection of project technologies, instant deploys from GitHub, managed databases, SSL via Let's Encrypt, and real-time monitoring -- all under your control.
+
+**Tech Stack:**
+- **API:** Fastify + TypeScript
+- **Frontend:** React + Vite + Tailwind CSS
+- **Database:** PostgreSQL (platform data)
+- **Containers:** Docker + dockerode
+- **Proxy:** Traefik (automatic SSL, dynamic routing)
+
+---
 
 ## Features
 
-- **Auto-detection** — Node.js, Python, Go, PHP detected automatically
-- **Instant deploys** — Push to GitHub, deploy in seconds
-- **Managed databases** — PostgreSQL, MySQL, MongoDB, Redis with one click
-- **Secure by default** — SSL via Let's Encrypt, container isolation, rate limiting
-- **Real-time monitoring** — CPU, memory, logs via WebSocket
-- **GitHub OAuth** — Login with your GitHub account
+| Feature | Description |
+|---------|-------------|
+| **Auto-detection** | Node.js, Python, Go, PHP detected automatically |
+| **Instant Deploys** | Push to GitHub, deploy in seconds |
+| **Managed Databases** | PostgreSQL, MySQL, MongoDB, Redis with one click |
+| **Secure by Default** | SSL via Let's Encrypt, container isolation, rate limiting |
+| **Real-time Monitoring** | CPU, memory, logs via WebSocket |
+| **GitHub OAuth** | Login with your GitHub account |
+| **Dynamic Routing** | Traefik-based routing with automatic SSL certificates |
+| **Version Control** | Deploy history with rollback support |
 
-## Tech Stack
+---
 
-- **API**: Fastify + TypeScript
-- **Frontend**: React + Vite + Tailwind CSS
-- **Database**: PostgreSQL (platform data)
-- **Containers**: Docker + dockerode
-- **Proxy**: Traefik (automatic SSL, dynamic routing)
+## Quick Start
 
-## Getting Started
+### Requirements
 
-### Prerequisites
-
-- Node.js 20+
-- Docker
-- PostgreSQL
+| Requirement | Version |
+|-------------|---------|
+| Node.js | 20+ |
+| Docker | Latest |
+| PostgreSQL | 16+ |
+| npm | 9+ |
 
 ### Development
 
-1. Clone the repository:
 ```bash
+# Clone the repository
 git clone https://github.com/JohnPitter/openflow.git
 cd openflow
-```
 
-2. Install dependencies:
-```bash
+# Install dependencies
 npm install
-```
 
-3. Copy environment variables:
-```bash
+# Copy environment variables
 cp .env.example .env
-```
 
-4. Configure `.env`:
-```env
-GITHUB_CLIENT_ID=your_github_client_id
-GITHUB_CLIENT_SECRET=your_github_client_secret
-JWT_SECRET=your_secret_key
-DATABASE_URL=postgresql://user:pass@localhost:5432/openflow
-```
+# Configure .env with your credentials
+# GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, JWT_SECRET, DATABASE_URL
 
-5. Run database migrations:
-```bash
+# Run database migrations
 cd apps/api && npx drizzle-kit push
-```
 
-6. Start development servers:
-```bash
+# Start development servers
 npm run dev:api   # API on port 3001
 npm run dev:web   # Frontend on port 5173
 ```
 
-### Production (Docker Compose)
+### Docker Compose
 
 ```bash
 docker compose up -d
 ```
 
-This starts:
-- Traefik (reverse proxy with SSL)
-- API server
-- Web frontend
-- PostgreSQL
+This starts Traefik (reverse proxy with SSL), API server, web frontend, and PostgreSQL.
+
+---
 
 ## VPS Setup Guide
-
-Complete guide to deploy OpenFlow on a fresh VPS.
 
 ### Quick Install (Automated)
 
@@ -90,16 +104,15 @@ Run this single command on a fresh Ubuntu 22.04+ VPS:
 curl -fsSL https://raw.githubusercontent.com/JohnPitter/openflow/main/scripts/setup.sh | sudo bash
 ```
 
-This automatically installs Docker, Node.js, PostgreSQL, and configures everything.
-
 To uninstall:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/JohnPitter/openflow/main/scripts/uninstall.sh | sudo bash
 ```
 
 ### Manual Installation
 
-#### 1. Requirements
+#### VPS Requirements
 
 | Resource | Minimum | Recommended |
 |----------|---------|-------------|
@@ -108,240 +121,59 @@ curl -fsSL https://raw.githubusercontent.com/JohnPitter/openflow/main/scripts/un
 | Disk | 20 GB | 50+ GB SSD |
 | OS | Ubuntu 22.04+ | Ubuntu 24.04 LTS |
 
-**Recommended VPS providers:** DigitalOcean, Hetzner, Vultr, Linode, Contabo
+Recommended VPS providers: DigitalOcean, Hetzner, Vultr, Linode, Contabo.
 
-#### 2. Initial Server Setup
+For the complete step-by-step VPS installation guide including Docker, Node.js, PostgreSQL, Traefik, PM2, and DNS setup, see [docs/VPS_SETUP.md](docs/VPS_SETUP.md).
 
-```bash
-# Connect to your VPS
-ssh root@your-server-ip
+---
 
-# Update system
-apt update && apt upgrade -y
+## Configuration
 
-# Install essentials
-apt install -y curl git wget unzip
+### Environment Variables
 
-# Create non-root user (optional but recommended)
-adduser openflow
-usermod -aG sudo openflow
-su - openflow
-```
-
-#### 3. Install Docker
-
-```bash
-# Install Docker
-curl -fsSL https://get.docker.com | sh
-
-# Add user to docker group
-sudo usermod -aG docker $USER
-
-# Apply group changes (or logout/login)
-newgrp docker
-
-# Verify installation
-docker --version
-docker compose version
-```
-
-#### 4. Install Node.js
-
-```bash
-# Install Node.js 20 via NodeSource
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-
-# Verify
-node --version  # Should be v20.x.x
-npm --version
-```
-
-#### 5. Install OpenFlow
-
-```bash
-# Clone repository
-git clone https://github.com/JohnPitter/openflow.git
-cd openflow
-
-# Install dependencies
-npm install
-
-# Build the application
-npm run build
-
-# Copy and configure environment
-cp .env.example .env
-nano .env
-```
-
-Configure your `.env`:
 ```env
-# IMPORTANT: Set to false in production!
-DEV_MODE=false
+# Development mode (enables mock GitHub auth)
+DEV_MODE=true
 
-# GitHub OAuth (create at github.com/settings/developers)
-GITHUB_CLIENT_ID=your_client_id
-GITHUB_CLIENT_SECRET=your_client_secret
+# GitHub OAuth
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
 
-# Security - Generate strong random secrets!
-JWT_SECRET=generate-64-char-random-string
-WEBHOOK_SECRET=generate-another-random-string
+# Security
+JWT_SECRET=your_secret_key
 
 # Database
-DATABASE_URL=postgresql://openflow:your_password@localhost:5432/openflow
+DATABASE_URL=postgresql://user:pass@localhost:5432/openflow
 
-# Domain
+# Production domain (VPS only)
 BASE_DOMAIN=yourdomain.com
 API_URL=https://api.yourdomain.com
 WEB_URL=https://yourdomain.com
 ```
 
-#### 6. Setup PostgreSQL
+### DNS Configuration (Production)
 
-```bash
-# Run PostgreSQL in Docker
-docker run -d \
-  --name openflow-postgres \
-  -e POSTGRES_USER=openflow \
-  -e POSTGRES_PASSWORD=your_password \
-  -e POSTGRES_DB=openflow \
-  -p 5432:5432 \
-  -v openflow-pgdata:/var/lib/postgresql/data \
-  --restart unless-stopped \
-  postgres:16-alpine
-
-# Run migrations
-cd apps/api && npx drizzle-kit push
+```
+A    yourdomain.com        -> YOUR_VPS_IP
+A    api.yourdomain.com    -> YOUR_VPS_IP
+A    *.yourdomain.com      -> YOUR_VPS_IP  (for project subdomains)
 ```
 
-#### 7. Configure Traefik (SSL & Routing)
-
-Create `traefik/traefik.yml`:
-```yaml
-api:
-  dashboard: true
-
-entryPoints:
-  web:
-    address: ":80"
-    http:
-      redirections:
-        entryPoint:
-          to: websecure
-          scheme: https
-  websecure:
-    address: ":443"
-
-certificatesResolvers:
-  letsencrypt:
-    acme:
-      email: your-email@example.com
-      storage: /letsencrypt/acme.json
-      httpChallenge:
-        entryPoint: web
-
-providers:
-  docker:
-    exposedByDefault: false
-```
-
-Start Traefik:
-```bash
-docker run -d \
-  --name traefik \
-  -p 80:80 -p 443:443 \
-  -v /var/run/docker.sock:/var/run/docker.sock:ro \
-  -v ./traefik:/etc/traefik \
-  -v traefik-certs:/letsencrypt \
-  --restart unless-stopped \
-  traefik:v3.0
-```
-
-#### 8. Run OpenFlow with PM2
-
-```bash
-# Install PM2
-sudo npm install -g pm2
-
-# Create ecosystem file
-cat > ecosystem.config.js << 'EOF'
-module.exports = {
-  apps: [
-    {
-      name: 'openflow-api',
-      cwd: './apps/api',
-      script: 'dist/app.js',
-      env: { NODE_ENV: 'production' }
-    },
-    {
-      name: 'openflow-web',
-      cwd: './apps/web',
-      script: 'npx',
-      args: 'serve -s dist -l 5173',
-      env: { NODE_ENV: 'production' }
-    }
-  ]
-};
-EOF
-
-# Start services
-pm2 start ecosystem.config.js
-
-# Save PM2 config and enable startup
-pm2 save
-pm2 startup
-```
-
-#### 9. Configure DNS
-
-Point your domain to your VPS IP:
-```
-A    yourdomain.com        → YOUR_VPS_IP
-A    api.yourdomain.com    → YOUR_VPS_IP
-A    *.yourdomain.com      → YOUR_VPS_IP  (for project subdomains)
-```
-
-#### 10. Verify Installation
-
-```bash
-# Check services
-pm2 status
-
-# Check health endpoint
-curl http://localhost:3001/api/health/requirements
-
-# Visit your domain
-# https://yourdomain.com
-```
-
-#### Troubleshooting
-
-```bash
-# View API logs
-pm2 logs openflow-api
-
-# View Traefik logs
-docker logs traefik
-
-# Check Docker containers
-docker ps -a
-
-# Restart services
-pm2 restart all
-```
+---
 
 ## Project Structure
 
 ```
 openflow/
 ├── apps/
-│   ├── api/          # Fastify backend
-│   └── web/          # React frontend
-├── templates/        # Dockerfile templates
+│   ├── api/          # Fastify backend (TypeScript)
+│   └── web/          # React frontend (Vite, Tailwind)
+├── templates/        # Dockerfile templates for auto-detected languages
 ├── docker-compose.yml
-└── docs/plans/       # Design documents
+└── docs/
 ```
+
+---
 
 ## GitHub OAuth Setup
 
@@ -351,6 +183,34 @@ openflow/
 4. Set Callback URL: `http://localhost:3001/api/auth/github/callback`
 5. Copy Client ID and Secret to `.env`
 
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [GETTING_STARTED.md](docs/GETTING_STARTED.md) | Quick start guide for development |
+| [VPS_SETUP.md](docs/VPS_SETUP.md) | Complete VPS deployment guide |
+| [CONFIGURATION.md](docs/CONFIGURATION.md) | All configuration options |
+
+---
+
 ## License
 
-MIT
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## Contributing
+
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request
+
+---
+
+## Support
+
+- **Issues:** [GitHub Issues](https://github.com/JohnPitter/openflow/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/JohnPitter/openflow/discussions)
